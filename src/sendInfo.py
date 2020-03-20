@@ -10,6 +10,7 @@ esp.osdebug(None)
 import gc
 gc.collect()
 client_id = ubinascii.hexlify(machine.unique_id())
+topics = ['userAns']
 
 #Previous global config load
 with open('wireless.conf','r') as configFile:
@@ -25,6 +26,9 @@ with open('wireless.conf','r') as configFile:
 			elif lineNumber ==2:
 				mqtt_server=line.replace('\n','')
 				
+#Here user config should be loaded
+dorsal=100
+tramposo = 'NO'
 #Wireless connection
 def connectWifi():
 	global ssid, password
@@ -42,8 +46,9 @@ def connectWifi():
 
 #Callback for topic subscribing
 def sub_cb(topic,msg):
-	pass #callback on develop
-		
+	print('Received my topic, we go')
+	machine.deepsleep()
+
 #MQTT connection and topics subscribing
 def connectMQTT():
 	global client_id, mqtt_server, topics
@@ -56,11 +61,18 @@ def connectMQTT():
 	for topic in topics:
 		client.subscribe(topic)
 	return client
-	
-topics = ['userAns']
-wifi = connectWifi()
-if wifi == 'Error':
-	raise Exception('Wifi Error')		
-mqtt = connectMQTT()
-if mqtt == 'Error':
-	raise Exception('mqtt Error')
+
+def run():
+	wifi = connectWifi()
+	if wifi == 'Error':
+		raise Exception('Wifi Error')
+	mqtt = connectMQTT()
+	if mqtt == 'Error':
+		raise Exception('mqtt Error')
+	msg = b'Dorsal #{} Estado #{} tramposo'.format(dorsal, tramposo)
+	mqtt.publish('userSays',msg)
+	startTime = time.time()
+	waitTime = 60
+	while(waitTime > time.time()-startTime):
+		mqtt.check_msg()
+

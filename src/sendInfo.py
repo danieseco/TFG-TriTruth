@@ -4,6 +4,7 @@ import ubinascii
 import machine
 import micropython
 import network
+import time
 import esp
 esp.osdebug(None)
 import gc
@@ -16,13 +17,13 @@ with open('wireless.conf','r') as configFile:
 	for line in configFile:	#important adding the symbol as first character and
 		if line[0] != '#': 	#all comments at the top of file whithout empty lines
 			if lineNumber==0:
-				ssid = line
+				ssid = line.replace('\n','')
 				lineNumber+=1
 			elif lineNumber==1:
-				password=line
+				password=line.replace('\n','')
 				lineNumber+=1
 			elif lineNumber ==2:
-				mqtt_server=line
+				mqtt_server=line.replace('\n','')
 				
 #Wireless connection
 def connectWifi():
@@ -30,11 +31,11 @@ def connectWifi():
 	wifi = network.WLAN(network.STA_IF)
 	wifi.active(True)
 	wifi.connect(ssid,password)
-	waitTime=0
-	while station.isconnected()==False and waitTime<5:
-		machine.lightsleep(100)
-		waitTime+=0.1
-	if station.isconnected()==False:
+	waitTime=30
+	startTime = time.time()
+	while wifi.isconnected()==False and waitTime > time.time()-startTime:
+		pass
+	if wifi.isconnected()==False:
 		return 'Error'
 	else:
 		return wifi
@@ -50,7 +51,7 @@ def connectMQTT():
 	client.set_callback(sub_cb)
 	try:
 		client.connect()
-	except MQTTException:
+	except:
 		return 'Error'
 	for topic in topics:
 		client.subscribe(topic)
@@ -59,7 +60,7 @@ def connectMQTT():
 topics = ['userAns']
 wifi = connectWifi()
 if wifi == 'Error':
-	raise wifiError		
+	raise Exception('Wifi Error')		
 mqtt = connectMQTT()
 if mqtt == 'Error':
-	raise mqttError
+	raise Exception('mqtt Error')

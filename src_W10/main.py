@@ -11,6 +11,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tkinter import *
 import time
+from tkinter import ttk
+from PIL import ImageTk, Image
 
 #Callback para gestión de mensajes
 def on_message(myClient, userdata, message):
@@ -30,7 +32,7 @@ def on_message(myClient, userdata, message):
         if info.loc[int(msg[0]),'Infractor'] == '':
             info.loc[int(msg[0]),'Infractor'] = "SI"
         client.publish('checked',msg[0])
-        app.newCheater(int(msg[0]))
+        app.newCheater(msg[0])
         info.loc[int(msg[0]),'DropTime'] = time.asctime()
             
         
@@ -40,23 +42,23 @@ class Application(Frame):
         writer = pd.ExcelWriter('TriTruthOutput.xlsx', engine='xlsxwriter')
         info.to_excel(writer, sheet_name='Results')
         writer.save()
+ 
+    def verificar(self):
+        dorsal = self.COMBO.get()
+        if dorsal != '':
+            values = list(self.COMBO["values"])
+            values.remove(dorsal)
+            self.COMBO["values"] = values
+            self.COMBO.set('')
+        self.MAP["image"] = self.imBase
+        
         
     def newCheater(self, dorsal):
-        self.toCheck.append(dorsal)
-        self.WATCH["bg"] = "red"
-        self.WATCH["text"] = "Nº " + str(dorsal)
-        
-    def cheat(self):
-        if len(self.toCheck) > 0:
-            if len(self.toCheck) == 1:
-                self.WATCH["bg"] = "white"
-                self.WATCH["fg"] = "black"
-            dorsal = self.toCheck[0]
-            self.toCheck.remove(self.toCheck[0])
-            info.loc[dorsal,'Check Time'] = time.asctime()
-            self.showPlaces(dorsal)
+        self.COMBO["values"] = list(self.COMBO["values"]) + [dorsal]
     
-    def showPlaces(self, dorsal):
+    def newSelection(self, posArg):
+        dorsal = int(self.COMBO.get())
+        
         BOX = (-6.1898, -5.9724, 37.3748, 37.5829)
         
         pos = pd.DataFrame()
@@ -83,26 +85,45 @@ class Application(Frame):
         axis.imshow(image, zorder=0, extent = BOX, aspect= 'equal')
         imgName = str(dorsal) + "map.png"
         fig.savefig(imgName)
-    
+        self.imUsr = ImageTk.PhotoImage(Image.open(imgName).resize((800,800)))
+        self.MAP["image"] = self.imUsr
     def createWidgets(self):
-        self.QUIT = Button(self)
-        self.QUIT["text"] = "QUIT"
-        self.QUIT["fg"]   = "red"
-        self.QUIT["command"] =  self.quit
-        self.QUIT.pack({"side": "left"})
-
-        self.EXCEL = Button(self)
-        self.EXCEL["text"] = "TO EXCEL",
-        self.EXCEL["bg"]   = "white"
-        self.EXCEL["command"] = self.save_toEXCEL
-        self.EXCEL.pack({"side": "right"})
+        self.downFr = Frame()
+        self.downFr.config(bg='blue')
+        self.downFr.pack(side='bottom', fill = 'x')
         
-        self.WATCH = Button(self)
-        self.WATCH["text"] = "",
-        self.WATCH["bg"]   = "white"
-        self.WATCH["fg"]   = "white"
-        self.WATCH["command"] = self.cheat
-        self.WATCH.pack(fill=X)
+        self.QUIT = Button(self.downFr, text="SALIR", command=self.quit )
+        self.QUIT.config(bg='red', fg='white')
+        self.QUIT.pack(side='left', fill='y')
+        
+        self.EXCEL = Button(self.downFr, text="EXPORTAR EXCEL", command=self.save_toEXCEL )
+        self.EXCEL.config(bg='green', fg='white')
+        self.EXCEL.pack(side='right', fill='y')
+        
+        self.leftFr = Frame()
+        self.leftFr.config(bg='black')
+        self.leftFr.pack(side='top')
+        self.leftFr.pack(side='left')
+        self.imLogo = ImageTk.PhotoImage(Image.open("logo.jpg").resize((250,250)))
+        self.LOGO = Label(self.leftFr, image = self.imLogo)
+        self.LOGO.pack(side = "top", fill = "both", expand = "yes")
+        self.CHOOSE = Label(self.leftFr, text="Elige tramposo", bg='black', fg='white')
+        self.CHOOSE.pack(fill='x')
+        self.COMBO = ttk.Combobox(self.leftFr, state="readonly")
+        self.COMBO.pack(fill='both', side='top')
+        self.COMBO.bind("<<ComboboxSelected>>", self.newSelection)
+        self.COMBO["values"] = []
+        
+        self.rightFr = Frame()
+        self.rightFr.config(bg='black')
+        self.rightFr.pack(side='left')
+        self.CHOOSE = Label(self.rightFr, text="Elige tramposo", bg='black', fg='white')
+        self.CHOOSE.pack(fill='x')
+        self.imBase = ImageTk.PhotoImage(Image.open("base.png").resize((800,800)))
+        self.MAP = Label(self.rightFr, image = self.imBase)
+        self.MAP.pack(side = "top", fill = "both", expand = "yes")
+        self.verify = Button(self.rightFr, text="VERIFICAR", bg="green", fg="black", command=self.verificar)
+        self.verify.pack(side="bottom")
         
     def __init__(self, master=None):
         Frame.__init__(self, master)

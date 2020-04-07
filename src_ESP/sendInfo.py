@@ -69,7 +69,7 @@ def run():
 	mqtt = connectMQTT()
 	if mqtt == 'Error':
 		raise Exception('mqtt Error')
-	msg = b'Dorsal #{} Estado #{} tramposo'.format(dorsal, tramposo)
+	msg = b'{} {}'.format(dorsal, tramposo)
 	mqtt.publish('userSays',msg)
 	startTime = time.time()
 	waitTime = 60

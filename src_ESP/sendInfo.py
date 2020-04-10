@@ -1,4 +1,3 @@
-import time
 from umqttsimple import MQTTClient
 import ubinascii
 import machine
@@ -10,7 +9,7 @@ esp.osdebug(None)
 import gc
 gc.collect()
 client_id = ubinascii.hexlify(machine.unique_id())
-topics = ['userAns']
+topics = ['checked']
 
 #Previous global config load
 with open('wireless.conf','r') as configFile:
@@ -26,9 +25,7 @@ with open('wireless.conf','r') as configFile:
 			elif lineNumber ==2:
 				mqtt_server=line.replace('\n','')
 				
-#Here user config should be loaded
-dorsal=100
-tramposo = 'NO'
+id = '1'
 #Wireless connection
 def connectWifi():
 	global ssid, password
@@ -46,8 +43,9 @@ def connectWifi():
 
 #Callback for topic subscribing
 def sub_cb(topic,msg):
-	print('Received my topic, we go')
-	machine.deepsleep()
+	if msg == id:
+		open('cheat.log','w').close()#Limpio el archivo
+		machine.deepsleep()
 
 #MQTT connection and topics subscribing
 def connectMQTT():
@@ -62,6 +60,16 @@ def connectMQTT():
 		client.subscribe(topic)
 	return client
 
+def publishContent(msgState, msgPlaces):
+	mqtt.publish('state',msgState)
+	time.sleep(0.5)
+	if msgPlaces != '':
+		mqtt.publish('places',msgPlaces)
+	startTime = time.time()
+	waitTime = 180 #3 minutos para esperar una respuesta de checked.
+	while(waitTime > time.time()-startTime):
+		mqtt.check_msg()
+		
 def run():
 	wifi = connectWifi()
 	if wifi == 'Error':
@@ -69,10 +77,19 @@ def run():
 	mqtt = connectMQTT()
 	if mqtt == 'Error':
 		raise Exception('mqtt Error')
-	msg = b'{} {}'.format(dorsal, tramposo)
-	mqtt.publish('userSays',msg)
-	startTime = time.time()
-	waitTime = 60
-	while(waitTime > time.time()-startTime):
-		mqtt.check_msg()
-
+		
+	with open('cheat.log','r') as cheatFile:
+		try:
+			lugares = cheatFile.read()
+		except:
+			lugares = ''
+		if lugares == '':
+			msgState = '{} NO'.format(id)
+			msgPlaces = ''
+		else:
+			msgState = '{} SI'.format(id)
+			msgPlaces = '{} {}'format(id, lugares) 
+			
+	while wifi.isconnected():
+		publishContent(msgState,msgPlaces)
+	return('Error')

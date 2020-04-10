@@ -55,7 +55,11 @@ class Application(Frame):
         
     def newCheater(self, dorsal):
         self.COMBO["values"] = list(self.COMBO["values"]) + [dorsal]
-    
+        
+    def salida(self):
+        self.save_toEXCEL()
+        self.quit()
+        
     def newSelection(self, posArg):
         dorsal = int(self.COMBO.get())
         
@@ -92,7 +96,7 @@ class Application(Frame):
         self.downFr.config(bg='blue')
         self.downFr.pack(side='bottom', fill = 'x')
         
-        self.QUIT = Button(self.downFr, text="SALIR", command=self.quit )
+        self.QUIT = Button(self.downFr, text="SALIR", command=self.salida )
         self.QUIT.config(bg='red', fg='white')
         self.QUIT.pack(side='left', fill='y')
         

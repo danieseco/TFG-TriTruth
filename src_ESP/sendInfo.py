@@ -44,7 +44,7 @@ def connectWifi():
 #Callback for topic subscribing
 def sub_cb(topic,msg):
 	if msg == id:
-		open('cheat.log','w').close()#Limpio el archivo
+		#open('cheat.log','w').close()#Limpio el archivo
 		machine.deepsleep()
 
 #MQTT connection and topics subscribing

@@ -66,7 +66,7 @@ def publishContent(msgState, msgPlaces):
 	if msgPlaces != '':
 		mqtt.publish('places',msgPlaces)
 	startTime = time.time()
-	waitTime = 180 #3 minutos para esperar una respuesta de checked.
+	waitTime = 300 #5 minutos para esperar una respuesta de checked.
 	while(waitTime > time.time()-startTime):
 		mqtt.check_msg()
 		
@@ -88,8 +88,8 @@ def run():
 			msgPlaces = ''
 		else:
 			msgState = '{} SI'.format(id)
-			msgPlaces = '{} {}'format(id, lugares) 
+			msgPlaces = '{} {}'.format(id, lugares) 
 			
 	while wifi.isconnected():
 		publishContent(msgState,msgPlaces)
-	return('Error')
+	return('Unchecked')

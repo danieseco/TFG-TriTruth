@@ -13,9 +13,11 @@ from tkinter import *
 import time
 from tkinter import ttk
 from PIL import ImageTk, Image
+import tkinter.messagebox as warning
 
 #Callback para gestión de mensajes
 def on_message(myClient, userdata, message):
+    global client
     msg = str(message.payload.decode("utf-8")).split(' ')
     if message.topic == 'state':
         if len(msg) == 2:
@@ -39,9 +41,17 @@ def on_message(myClient, userdata, message):
 
 class Application(Frame):
     def save_toEXCEL(self):
-        writer = pd.ExcelWriter('TriTruthOutput.xlsx', engine='xlsxwriter')
-        info.to_excel(writer, sheet_name='Results')
-        writer.save()
+        if self.configured == True:
+            try:
+                writer = pd.ExcelWriter('TriTruthOutput.xlsx', engine='xlsxwriter')
+                info.to_excel(writer, sheet_name='Results')
+                writer.save()
+                return ('Ok')
+            except Exception:
+                warning.showwarning(title='Error guardado de info', message='Error al guardar el excel de datos')
+                return ('Error')
+        else:
+            return ('Ok')
  
     def verificar(self):
         dorsal = self.COMBO.get()
@@ -50,6 +60,35 @@ class Application(Frame):
             values.remove(dorsal)
             self.COMBO["values"] = values
             self.COMBO.set('')
+            info.loc[int(dorsal),'CheckTime'] = time.asctime()
+        self.MAP["image"] = self.imBase
+  
+    def configurar(self):
+        try:
+            connMqtt()
+            getData()
+            self.configured = True
+            self.reconn.destroy()
+            self.verify['state'] = 'normal'
+            self.discard['state'] = 'normal'
+            self.EXCEL['state'] = 'normal'
+            self.COMBO['state'] = 'normal'
+        except Exception as e:
+            if e.args[0] == 'mqtt error':
+                warning.showwarning(title='Error de mensajería', message='Error al conectar con el broker MQTT')
+            elif e.args[0] == 'data error':
+                warning.showwarning(title='Error de informacion', message='Error en el archivo de datos excel InfoTriathletes.xlsx')
+            else:
+                warning.showwarning(title='Error', message='Error desconocido \n {}'.format(e))
+    def descartar(self):
+        dorsal = self.COMBO.get()
+        if dorsal != '':
+            values = list(self.COMBO["values"])
+            values.remove(dorsal)
+            self.COMBO["values"] = values
+            self.COMBO.set('')
+            info.loc[int(dorsal),'Places'] = ''
+            info.loc[int(dorsal),'Infractor'] = 'NO'
         self.MAP["image"] = self.imBase
         
         
@@ -57,8 +96,8 @@ class Application(Frame):
         self.COMBO["values"] = list(self.COMBO["values"]) + [dorsal]
         
     def salida(self):
-        self.save_toEXCEL()
-        self.quit()
+        if self.save_toEXCEL() == 'Ok':
+            self.quit()
         
     def newSelection(self, posArg):
         dorsal = int(self.COMBO.get())
@@ -91,6 +130,7 @@ class Application(Frame):
         fig.savefig(imgName)
         self.imUsr = ImageTk.PhotoImage(Image.open(imgName).resize((800,800)))
         self.MAP["image"] = self.imUsr
+    
     def createWidgets(self):
         self.downFr = Frame()
         self.downFr.config(bg='blue')
@@ -101,7 +141,7 @@ class Application(Frame):
         self.QUIT.pack(side='left', fill='y')
         
         self.EXCEL = Button(self.downFr, text="EXPORTAR EXCEL", command=self.save_toEXCEL )
-        self.EXCEL.config(bg='green', fg='white')
+        self.EXCEL.config(bg='green', fg='white', state='disabled')
         self.EXCEL.pack(side='right', fill='y')
         
         self.leftFr = Frame()
@@ -115,45 +155,61 @@ class Application(Frame):
         self.CHOOSE.pack(fill='x')
         self.COMBO = ttk.Combobox(self.leftFr, state="readonly")
         self.COMBO.pack(fill='both', side='top')
+        self.COMBO['state'] = 'disabled'
         self.COMBO.bind("<<ComboboxSelected>>", self.newSelection)
         self.COMBO["values"] = []
+        self.reconn = Button(self.leftFr, text="CONFIGURAR", bg="RED", fg="white", command=self.configurar, height=10, width=35)
+        self.reconn.pack(side="top")
         
         self.rightFr = Frame()
         self.rightFr.config(bg='black')
         self.rightFr.pack(side='left')
-        self.CHOOSE = Label(self.rightFr, text="Elige tramposo", bg='black', fg='white')
-        self.CHOOSE.pack(fill='x')
+        self.IMAGEN = Label(self.rightFr, text="SEVILLA", bg='black', fg='white')
+        self.IMAGEN.pack(fill='x')
         self.imBase = ImageTk.PhotoImage(Image.open("base.png").resize((800,800)))
         self.MAP = Label(self.rightFr, image = self.imBase)
         self.MAP.pack(side = "top", fill = "both", expand = "yes")
-        self.verify = Button(self.rightFr, text="VERIFICAR", bg="green", fg="black", command=self.verificar)
-        self.verify.pack(side="bottom")
+        self.verify = Button(self.rightFr, text="VERIFICAR", bg="green", fg="black", command=self.verificar, state='disabled')
+        self.verify.pack(side="left")
+        self.discard = Button(self.rightFr, text="DESCARTAR", bg="blue", fg="white", command=self.descartar, state='disabled')
+        self.discard.pack(side="right")
         
     def __init__(self, master=None):
         Frame.__init__(self, master)
         self.pack()
         self.createWidgets()
         self.toCheck = []
+        self.configured = False
+        self.configurar()
 
 
     
 #Iniciar proceso Mqtt
-try:
-    IP = socket.gethostbyname(socket.gethostname())
-    client = mqtt.Client()
-    client.on_message = on_message #Attach callback 4 subscribed topics
-    info = pd.read_excel(r'infoTriathletes.xlsx').set_index('Dorsal')
-    info['Infractor']=''
-    info['Places']=''
-    info['DropTime']=''
-    info['Check Time']=''
-    client.connect(IP)
-    client.loop_start()
-    client.subscribe('state')
-    client.subscribe('places')
-except:
-	raise Exception('mqtt error')
+def connMqtt():
+    try:
+        global client
+        IP = socket.gethostbyname(socket.gethostname())
+        client = mqtt.Client()
+        client.on_message = on_message #Attach callback 4 subscribed topics
+        client.connect(IP)
+        client.loop_start()
+        client.subscribe('state')
+        client.subscribe('places')
+    except:
+    	raise Exception('mqtt error')
+def getData():
+    try:
+        global info
+        info = pd.read_excel(r'infoTriathletes.xlsx').set_index('Dorsal')
+        info['Infractor']=''
+        info['Places']=''
+        info['DropTime']=''
+        info['CheckTime']=''
+    except:
+        raise Exception('data error')
 
+info = None
+client = None
 root = Tk()
 app = Application(master=root)
 app.mainloop()

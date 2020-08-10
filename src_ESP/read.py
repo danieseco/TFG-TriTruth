@@ -123,6 +123,7 @@ def run():
 					deepsleep(1000)
 			print(totalCheat, totalFree, distance)
 		gpsThread.exit()
+		cheatFile.close()
 		checked = 'Unchecked'
 		while (checked == 'Unchecked'):
 			try:

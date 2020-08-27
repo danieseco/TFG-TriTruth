@@ -24,8 +24,10 @@ with open('wireless.conf','r') as configFile:
 				lineNumber+=1
 			elif lineNumber ==2:
 				mqtt_server=line.replace('\n','')
-				
-id = '1'
+
+with open('user.conf','r') as idFile:
+	id = idFile.read()
+
 #Wireless connection
 def connectWifi():
 	global ssid, password
@@ -70,25 +72,20 @@ def publishContent(msgState, msgPlaces):
 	while(waitTime > time.time()-startTime):
 		mqtt.check_msg()
 		
-def run():
+def run(cheatInfo):
 	wifi = connectWifi()
 	if wifi == 'Error':
 		raise Exception('Wifi Error')
 	mqtt = connectMQTT()
 	if mqtt == 'Error':
 		raise Exception('mqtt Error')
-		
-	with open('cheat.log','r') as cheatFile:
-		try:
-			lugares = cheatFile.read()
-		except:
-			lugares = ''
-		if lugares == '':
-			msgState = '{} NO'.format(id)
-			msgPlaces = ''
-		else:
-			msgState = '{} SI'.format(id)
-			msgPlaces = '{} {}'.format(id, lugares) 
+	
+	if cheatInfo == '':
+		msgState = '{} NO'.format(id)
+		msgPlaces = ''
+	else:
+		msgState = '{} SI'.format(id)
+		msgPlaces = '{} {}'.format(id, cheatInfo) 
 			
 	while wifi.isconnected():
 		publishContent(msgState,msgPlaces)

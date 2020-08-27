@@ -1,4 +1,4 @@
-from machine import UART, I2C, Pin, PWM, deepsleep
+from machine import UART, I2C, Pin, PWM
 import time
 import ssd1306
 import gps
@@ -26,8 +26,7 @@ def userAdvice(seconds):
 			myPwm.freq(2000)
 			i=0
 		time.sleep(0.01)
-	myPwm.freq(0)
-	myPwm.duty(0)
+	myPwm.deinit()
 	
 def setLidar():
 	#Configuro la UART
@@ -69,9 +68,13 @@ def setScreen():
 	except Exception as errCod:
 		return [False, errCod]
 	
-def dispMsg(screen, msg):
+def dispMsg(screen, msg, msg2=None, msg3=None):
 	screen.fill(0)
 	screen.text(msg, 0, 0)
+	if msg2 != None:
+		screen.text(msg2,0,10)
+	if msg3 != None:
+		screen.text(msg3,0,20)
 	screen.show()
 
 def run():
@@ -79,17 +82,23 @@ def run():
 	currFree = 0
 	totalFree = 0
 	totalCheat = 0
+	totAvisos = 0
 	gpsThread = _thread.start_new_thread(actGPS, ())
 	sensor = setLidar()
 	screen = setScreen()
 	led = Pin(33, Pin.OUT)
 	led.value(0)
-	cheatFile = open('cheat.log','w+')
+	cheatInfo =''
 	if (sensor[0] == True):
 		while(currGPS != 'END'):
+			
 			distance = getLidar(sensor[1])
 			if distance != 'Error':
-				dispMsg(screen[1], str(distance))
+				
+				if currCheat == 0:
+					dispMsg(screen[1], "Dist: "+str(distance), "Pos: "+str(currGPS), "Guardados: "+str(totAvisos))
+				else:
+					dispMsg(screen[1], "Dist: "+str(distance), "Tot: "+str(totalCheat), " Libre: "+str(totalFree))
 				
 				if distance < 800 : # Si a menor de la distancia
 					if currFree != 0:#Limpio el tiempo de liberación y lo acumulo si habia
@@ -113,21 +122,22 @@ def run():
 						if currFree != 0:#Limpio el tiempo de liberación y lo acumulo si habia
 							totalFree += time.time()-currFree
 							currFree = 0
-						if totalFree > 5: # Si he estado mas de la mitad del tiempo infringiendo
-							_thread.start_new_thread(userAdvice, [1])
-							cheatFile.write(' #{}#{}'.format(lon, lat)) #Guardo el positivo
+						if totalFree < 5: # Si he estado mas de la mitad del tiempo infringiendo
+							_thread.start_new_thread(userAdvice, [3])
+							cheatInfo += ' #{}#{}'.format(lon, lat) #Guardo el positivo
+							totAvisos += 1
 						totalCheat = 0 #Haya sido una infraccion o not
 						totalFree = 0  #reinicio todos los contadores
 						currCheat = 0
 				else:
-					deepsleep(1000)
+					time.sleep(1)
 			print(totalCheat, totalFree, distance)
 		gpsThread.exit()
-		cheatFile.close()
+		dispMsg(screen[1],"FIN","DETECCION")
 		checked = 'Unchecked'
 		while (checked == 'Unchecked'):
 			try:
-				checked = sendInfo.run()
+				checked = sendInfo.run(cheatInfo)
 			except:
 				pass
 	else:

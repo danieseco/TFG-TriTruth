@@ -2,16 +2,22 @@ from machine import UART, Pin, deepsleep
 from time import sleep
 
 def loadSafeZone():
-	with open('safeZone.conf','r') as zoneFile:
-		safeZone = []
-		for line in zoneFile:
-			if line[0] != '#':
-				safeZone.append(line.split('#'))
-	
-	with open('connZone.conf','r') as connFile:
-		for line in connFile:
-			if line[0] != '#':
-				connZone = line.split('#')
+	safeZone = []
+	connZone = []
+	try:
+		with open('safeZone.conf','r') as zoneFile:
+			for line in zoneFile:
+				if line[0] != '#':
+					safeZone.append(line.split('#'))
+	except:
+		pass
+	try:
+		with open('connZone.conf','r') as connFile:
+			for line in connFile:
+				if line[0] != '#':
+					connZone = line.split('#')
+	except:
+		pass
 	return [safeZone, connZone]
 	
 def run():
@@ -38,21 +44,25 @@ def run():
 							longitude = -longitude
 					
 						time = line[5]
-						
 					for zone in safeZone: #Si tengo q detectar
 						if (zone[0] < latitude < zone[2]) and (zone[1] < longitude < zone[3]):
 							yield('PASS')
 							inSafe = True
-					if (time > connZone[0]) and (connZone[1] < latitude < connZone[3]) and (connZone[2] < longitude < connZone[4]):
-						yield('END')
-						break
-						
+					if  len(connZone)==4 and (connZone[1] < latitude < connZone[3]) and (connZone[2] < longitude < connZone[4]):
+						if (time > connZone[0]):
+							yield('END')
+							break
+						else:
+							yield('PASS')
+							break
+					
 					if inSafe == False:
-						yield ('{}#{}#{}'.format(longitude, latitude, time))
+						yield('{}#{}#{}'.format(longitude, latitude, time))
 					else:
-						deepsleep(10000) #Si estoy en zona segura, duermo todo el micro 10s
+						sleep(10) #Si estoy en zona segura, duermo todo el micro 10s
 				else:
 					yield('PASS')
-		except:
+		except Exception as e:
+			print(e)
 			pass
 			

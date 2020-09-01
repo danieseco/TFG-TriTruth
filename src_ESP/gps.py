@@ -24,44 +24,59 @@ def run():
 	gps = UART(1)
 	gps.init(baudrate=9600, bits=8, tx=17, rx=16)
 	safeZone, connZone = loadSafeZone()
+	#----------------------------------
+	createdFile = False
+	timeStamp = 11
+	#----------------------------------
 	while(True):
 		try:
 			inSafe = False
 			line = str(gps.readline()).split(',')
 			if '$GPGLL' in line[0]:
-				if len(line)>5: #Si tengo señal
-					if len(line[1]) > 9 and len(line[3]) > 10:
-						dgLat = int(line[1][0] + line[1][1])				#Calculo latitud
-						minLat = float(line[1][2] + line[1][3] + line[1][4] + line[1][5] + line[1][6] + line[1][7] + line[1][8] + line[1][9] )
-						latitude = dgLat+minLat/60
-						if line[2] == 'S':
-							latitude = -latitude
-						
-						dgLon = int(line[3][0] + line[3][1] + line[3][2])	#Calculo longitud
-						minLon = float(line[3][3] + line[3][4] + line[3][5] + line[3][6] + line[3][7] + line[3][8] + line[3][9] + line[3][10])
-						longitude = dgLon+minLon/60
-						if line[4] == 'W':
-							longitude = -longitude
+				if len(line)>5 and len(line[1]) > 9 and len(line[3]) > 10: #Si tengo señal
+					dgLat = int(line[1][0] + line[1][1])				#Calculo latitud
+					minLat = float(line[1][2] + line[1][3] + line[1][4] + line[1][5] + line[1][6] + line[1][7] + line[1][8] + line[1][9] )
+					latitude = dgLat+minLat/60
+					if line[2] == 'S':
+						latitude = -latitude
 					
-						time = line[5]
+					dgLon = int(line[3][0] + line[3][1] + line[3][2])	#Calculo longitud
+					minLon = float(line[3][3] + line[3][4] + line[3][5] + line[3][6] + line[3][7] + line[3][8] + line[3][9] + line[3][10])
+					longitude = dgLon+minLon/60
+					if line[4] == 'W':
+						longitude = -longitude
+				
+					time = line[5]
 					for zone in safeZone: #Si tengo q detectar
-						if (zone[0] < latitude < zone[2]) and (zone[1] < longitude < zone[3]):
+						if (float(zone[0]) < latitude < float(zone[2])) and (float(zone[1]) < longitude < float(zone[3])):
 							yield('PASS')
 							inSafe = True
-					if  len(connZone)==4 and (connZone[1] < latitude < connZone[3]) and (connZone[2] < longitude < connZone[4]):
-						if (time > connZone[0]):
+					if  len(connZone)==5 and (float(connZone[1]) < latitude < float(connZone[3])) and (float(connZone[2]) < longitude < float(connZone[4])):
+						if (time > float(connZone[0])):
 							yield('END')
+							debugFile.write("#{}#{}#{} ".format(longitude, latitude, 'END'))
+							debugFile.close()
 							break
 						else:
 							yield('PASS')
-							break
+							continue
 					
 					if inSafe == False:
 						yield('{}#{}#{}'.format(longitude, latitude, time))
 					else:
-						sleep(10) #Si estoy en zona segura, duermo todo el micro 10s
+						sleep(10) #Si estoy en zona segura, duermo 10s
+					#----------------------------------
+					if not createdFile:
+						debugFile = open('infoFile'+time, 'w')
+						createdFile = True
+					if timeStamp > 10:
+						timeStamp = 0
+						debugFile.write("#{}#{}#{} ".format(longitude, latitude, str(inSafe)))
+					#----------------------------------
 				else:
+					print("NO connection")
 					yield('PASS')
+						
 		except Exception as e:
 			print(e)
 			pass

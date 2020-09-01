@@ -91,47 +91,49 @@ def run():
 	cheatInfo =''
 	if (sensor[0] == True):
 		while(currGPS != 'END'):
-			
-			distance = getLidar(sensor[1])
-			if distance != 'Error':
-				
-				if currCheat == 0:
-					dispMsg(screen[1], "Dist: "+str(distance), "Pos: "+str(currGPS), "Guardados: "+str(totAvisos))
-				else:
-					dispMsg(screen[1], "Dist: "+str(distance), "Tot: "+str(totalCheat), " Libre: "+str(totalFree))
-				
-				if distance < 800 : # Si a menor de la distancia
-					if currFree != 0:#Limpio el tiempo de liberación y lo acumulo si habia
-						totalFree += time.time()-currFree
-						currFree = 0
-						led.value(1)
-					if currGPS != 'PASS' and currCheat == 0: # Si estoy en zona prohibida x primera vez
-						currCheat = time.time() #Arranco el aviso
-						lon, lat, tiemp = currGPS.split('#') #Guardo donde comienzo
-						led.value(1)
-						
-				elif distance > 800 and currCheat != 0: #Si salgo de zona prohibida en un aviso
-					if currFree == 0:
-						currFree = time.time()
-						led.value(0)
-				
-				if currCheat != 0: #Si estoy bajo un aviso
-					totalCheat = time.time()-currCheat
-					if totalCheat > 10 :#Si llevo + de 10" en aviso
-						led.value(0)
+			try:
+				distance = getLidar(sensor[1])
+				if distance != 'Error':
+					
+					if currCheat == 0:
+						dispMsg(screen[1], "Dist: "+str(distance), "Pos: "+str(currGPS), "Guardados: "+str(totAvisos))
+					else:
+						dispMsg(screen[1], "Dist: "+str(distance), "Tot: "+str(totalCheat), " Libre: "+str(totalFree))
+					
+					if distance < 800 : # Si a menor de la distancia
 						if currFree != 0:#Limpio el tiempo de liberación y lo acumulo si habia
 							totalFree += time.time()-currFree
 							currFree = 0
-						if totalFree < 5: # Si he estado mas de la mitad del tiempo infringiendo
-							_thread.start_new_thread(userAdvice, [3])
-							cheatInfo += ' #{}#{}'.format(lon, lat) #Guardo el positivo
-							totAvisos += 1
-						totalCheat = 0 #Haya sido una infraccion o not
-						totalFree = 0  #reinicio todos los contadores
-						currCheat = 0
-				else:
-					time.sleep(1)
-			print(totalCheat, totalFree, distance)
+							led.value(1)
+						if currGPS != 'PASS' and currCheat == 0: # Si estoy en zona prohibida x primera vez
+							currCheat = time.time() #Arranco el aviso
+							lon, lat, tiemp = currGPS.split('#') #Guardo donde comienzo
+							led.value(1)
+							
+					elif distance > 800 and currCheat != 0: #Si salgo de zona prohibida en un aviso
+						if currFree == 0:
+							currFree = time.time()
+							led.value(0)
+					
+					if currCheat != 0: #Si estoy bajo un aviso
+						totalCheat = time.time()-currCheat
+						if totalCheat > 10 :#Si llevo + de 10" en aviso
+							led.value(0)
+							if currFree != 0:#Limpio el tiempo de liberación y lo acumulo si habia
+								totalFree += time.time()-currFree
+								currFree = 0
+							if totalFree < 5: # Si he estado mas de la mitad del tiempo infringiendo
+								_thread.start_new_thread(userAdvice, [3])
+								cheatInfo += ' #{}#{}'.format(lon, lat) #Guardo el positivo
+								totAvisos += 1
+							totalCheat = 0 #Haya sido una infraccion o not
+							totalFree = 0  #reinicio todos los contadores
+							currCheat = 0
+					else:
+						time.sleep(1)
+				print(totalCheat, totalFree, distance, totAvisos)
+			except Exception as e:
+				print(e)
 		gpsThread.exit()
 		dispMsg(screen[1],"FIN","DETECCION")
 		checked = 'Unchecked'

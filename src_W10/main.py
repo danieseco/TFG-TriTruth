@@ -14,6 +14,7 @@ import time
 from tkinter import ttk
 from PIL import ImageTk, Image
 import tkinter.messagebox as warning
+import os
 
 #Callback para gestión de mensajes
 def on_message(myClient, userdata, message):
@@ -67,6 +68,9 @@ class Application(Frame):
         try:
             connMqtt()
             getData()
+            getMapConfig()
+            self.imBase = ImageTk.PhotoImage(Image.open(mapName).resize((800,800)))
+            self.MAP["image"] = self.imBase
             self.configured = True
             self.reconn.destroy()
             self.verify['state'] = 'normal'
@@ -78,8 +82,12 @@ class Application(Frame):
                 warning.showwarning(title='Error de mensajería', message='Error al conectar con el broker MQTT')
             elif e.args[0] == 'data error':
                 warning.showwarning(title='Error de informacion', message='Error en el archivo de datos excel InfoTriathletes.xlsx')
+            elif e.args[0] == 'map error':
+                 warning.showwarning(title='Error de archivo', message='Error en el archivo de configuración map.conf')
+            elif e.args[1] == 'No such file or directory':
+                warning.showwarning(title='Error de archivo', message='Error en el nombre del archivo del mapa en map.conf')
             else:
-                warning.showwarning(title='Error', message='Error desconocido \n {}'.format(e))
+                warning.showwarning(title='Error', message='Error desconocido \n {}'.format(e.args))
     def descartar(self):
         dorsal = self.COMBO.get()
         if dorsal != '':
@@ -100,10 +108,8 @@ class Application(Frame):
             self.quit()
         
     def newSelection(self, posArg):
+        global BOX, mapName
         dorsal = int(self.COMBO.get())
-        
-        BOX = (-6.1898, -5.9724, 37.3748, 37.5829)
-        
         pos = pd.DataFrame()
         pos["longitude"] = 0        
         pos["latitude"] = 0
@@ -118,7 +124,7 @@ class Application(Frame):
                 pos.loc[index,"latitude"] = float(lat)  
                 index+=1                  
         #Muestro resultados en la imagen   
-        image = plt.imread('C:/GitHub/TFG-TriTruth/src_W10/base.png')                           
+        image = plt.imread(mapName)                           
         fig, axis = plt.subplots(figsize = (20,20)) 
         title = "Lugares tramapa del usuario " + str(dorsal) 
         axis.set_title(title)
@@ -148,10 +154,10 @@ class Application(Frame):
         self.leftFr.config(bg='black')
         self.leftFr.pack(side='top')
         self.leftFr.pack(side='left')
-        self.imLogo = ImageTk.PhotoImage(Image.open("logo.jpg").resize((250,250)))
+        self.imLogo = ImageTk.PhotoImage(Image.open("logo.png").resize((250,350)))
         self.LOGO = Label(self.leftFr, image = self.imLogo)
         self.LOGO.pack(side = "top", fill = "both", expand = "yes")
-        self.CHOOSE = Label(self.leftFr, text="Elige tramposo", bg='black', fg='white')
+        self.CHOOSE = Label(self.leftFr, text="Elige deportista", bg='black', fg='white')
         self.CHOOSE.pack(fill='x')
         self.COMBO = ttk.Combobox(self.leftFr, state="readonly")
         self.COMBO.pack(fill='both', side='top')
@@ -164,9 +170,9 @@ class Application(Frame):
         self.rightFr = Frame()
         self.rightFr.config(bg='black')
         self.rightFr.pack(side='left')
-        self.IMAGEN = Label(self.rightFr, text="SEVILLA", bg='black', fg='white')
+        self.IMAGEN = Label(self.rightFr, text="MAPA BASE", bg='black', fg='white')
         self.IMAGEN.pack(fill='x')
-        self.imBase = ImageTk.PhotoImage(Image.open("base.png").resize((800,800)))
+        self.imBase = ImageTk.PhotoImage(Image.open("logo.png").resize((800,800)))
         self.MAP = Label(self.rightFr, image = self.imBase)
         self.MAP.pack(side = "top", fill = "both", expand = "yes")
         self.verify = Button(self.rightFr, text="VERIFICAR", bg="green", fg="black", command=self.verificar, state='disabled')
@@ -188,6 +194,7 @@ class Application(Frame):
 def connMqtt():
     try:
         global client
+        os.system('cmd /k ubuntu run sudo service mosquitto start')
         IP = socket.gethostbyname(socket.gethostname())
         client = mqtt.Client()
         client.on_message = on_message #Attach callback 4 subscribed topics
@@ -207,10 +214,39 @@ def getData():
         info['CheckTime']=''
     except:
         raise Exception('data error')
-
+        
+def getMapConfig():
+    global mapName, BOX
+    try:
+        with open('map.conf','r') as mapInfo:
+            lineNumber = 0
+            for line in mapInfo:
+                if line[0] != '#':
+                    if lineNumber == 0:
+                        mapName = line.rstrip()
+                        lineNumber += 1
+                    elif lineNumber == 1:
+                        long1 = float(line)
+                        lineNumber += 1
+                    elif lineNumber == 2:
+                        long2 = float(line)
+                        lineNumber += 1
+                    elif lineNumber == 3:
+                        lat1 = float(line)
+                        lineNumber += 1
+                    elif lineNumber == 4:
+                        lat2 = float(line)
+                        lineNumber += 1
+        BOX = (long1, long2, lat1, lat2)
+    except:
+        raise Exception('map error')
+        
+mapName = ''
+BOX = None     
 info = None
 client = None
 root = Tk()
+root.title("12 meters. Detection")
 app = Application(master=root)
 app.mainloop()
 root.destroy()

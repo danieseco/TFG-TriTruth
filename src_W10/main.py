@@ -63,6 +63,7 @@ class Application(Frame):
             self.COMBO.set('')
             info.loc[int(dorsal),'CheckTime'] = time.asctime()
         self.MAP["image"] = self.imBase
+        self.IMAGEN['text'] = "MAPA BASE"
   
     def configurar(self):
         try:
@@ -98,6 +99,7 @@ class Application(Frame):
             info.loc[int(dorsal),'Places'] = ''
             info.loc[int(dorsal),'Infractor'] = 'NO'
         self.MAP["image"] = self.imBase
+        self.IMAGEN['text'] = "MAPA BASE"
         
         
     def newCheater(self, dorsal):
@@ -120,15 +122,15 @@ class Application(Frame):
         for place in listPlaces:
             if len(place.split('#')) == 3:
                 waste, lon, lat = place.split('#')
-                pos.loc[index,"longitude"] = float(lon)
-                pos.loc[index,"latitude"] = float(lat)  
+                pos.loc[index,"latitude"] = BOX[3]+(BOX[2]-float(lon))
+                pos.loc[index,"longitude"] = float(lat)
                 index+=1                  
         #Muestro resultados en la imagen   
         image = plt.imread(mapName)                           
         fig, axis = plt.subplots(figsize = (20,20)) 
-        title = "Lugares tramapa del usuario " + str(dorsal) 
+        title = "Lugares infraccion del usuario " + str(dorsal) 
         axis.set_title(title)
-        axis.scatter(pos.longitude, pos.latitude, zorder=1, alpha= 0.9, c='r', s=100)        
+        axis.scatter(pos.longitude, pos.latitude, zorder=1, alpha= 0.9, c='r', s=200)        
         axis.set_xlim(BOX[0],BOX[1])        
         axis.set_ylim(BOX[2],BOX[3])        
         axis.imshow(image, zorder=0, extent = BOX, aspect= 'equal')
@@ -136,6 +138,7 @@ class Application(Frame):
         fig.savefig(imgName)
         self.imUsr = ImageTk.PhotoImage(Image.open(imgName).resize((800,800)))
         self.MAP["image"] = self.imUsr
+        self.IMAGEN['text'] = "USUARIO "+str(dorsal)
     
     def createWidgets(self):
         self.downFr = Frame()
